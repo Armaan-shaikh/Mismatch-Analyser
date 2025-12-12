@@ -1,0 +1,5 @@
+{
+  "name": "mismatch checker",
+  "description": "A three-step AI assistant to reconcile billing machine data against handwritten store reports for multiple locations.",
+  "requestFramePermissions": []
+}
