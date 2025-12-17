@@ -19,7 +19,7 @@ export const extractHandwrittenReport = async (base64Image: string): Promise<Phy
     2. **Detailed Section (Right/Secondary Column):** Contains breakdowns (e.g., "Tea", "Porter", "Travel").
     3. **Totals:** A "Total Sale" or "Total" line at the bottom.
 
-    **YOUR TASK:** Extract the **Physical/Actual** counts.
+    **YOUR TASK:** Extract the **Physical/Actual** counts for each payment mode.
 
     **CRITICAL EXTRACTION RULES:**
     
@@ -34,12 +34,13 @@ export const extractHandwrittenReport = async (base64Image: string): Promise<Phy
        - Be careful not to confuse "Cash" (1420) with other numbers.
        - If you see "Cash Collected", verify if it refers to the same "Cash" value.
     
-    3. **The "Total Sale" Validation (THE MOST IMPORTANT STEP):**
-       - Find the "Total Sale" or "Total" written on the paper (e.g., 24806).
-       - **CALCULATE INTERNALLY:** (Your Extracted Cash + Your Extracted Expense + Your Extracted Card + Your Extracted UPI + Your Extracted Sodexo).
-       - **COMPARE:** Does Your Sum match the Written Total?
-       - **IF MISMATCH:** You have likely misread a digit (e.g., 1420 vs 920, 500 vs 800) or missed a line item (like "Staff Advance").
-       - **CORRECTION:** Adjust your extracted numbers until they sum up to the Written Total. Trust the Written Total as the source of truth for the sum.
+    3. **The "Total Sale" Calculation (CRITICAL CHANGE):**
+       - **DO NOT** blindly trust the "Total" written on the paper. Store managers often make calculation errors.
+       - **EXTRACT** the individual values first: Cash, Expenses, Card, UPI, Sodexo.
+       - **CALCULATE INTERNALLY:** (Cash + Expenses + Card + UPI + Sodexo).
+       - **COMPARE:** Does your sum match the written total?
+       - **DECISION:** If there is a mismatch, **TRUST YOUR EXTRACTED COMPONENTS** (the individual numbers you see) and ignore the written total. The individual numbers are the source of truth.
+       - Only adjust your extracted numbers if you clearly see you misread a digit (e.g. reading 500 as 800). Do not invent numbers to match the total.
 
     4. **Handling Blanks:**
        - If "Staff Advance" or "Vendor Payment" has no number next to it (empty box), treat it as 0.
@@ -53,7 +54,7 @@ export const extractHandwrittenReport = async (base64Image: string): Promise<Phy
     - **cardMachineTotal**: Card total.
     - **upiMachineTotal**: UPI/Online total.
     - **sodexoTotal**: Sodexo total.
-    - **totalSales**: The "Total Sale" written on the paper.
+    - **totalSales**: The SUM of the above components (Cash + Expenses + Card + UPI + Sodexo). Calculate this yourself.
     - **extractedStoreName**: Name of the store.
     - **extractedDate**: Date in YYYY-MM-DD.
 
@@ -88,7 +89,7 @@ export const extractHandwrittenReport = async (base64Image: string): Promise<Phy
             upiMachineTotal: { type: Type.NUMBER, description: "Physical UPI/Online total" },
             cardMachineTotal: { type: Type.NUMBER, description: "Physical Card/POS settlement total" },
             sodexoTotal: { type: Type.NUMBER, description: "Physical Sodexo/Meal Pass total" },
-            totalSales: { type: Type.NUMBER, description: "The Grand Total / Total Sale written on the document" },
+            totalSales: { type: Type.NUMBER, description: "Calculated Sum: cashCount + expenses + upi + card + sodexo" },
           },
           required: ["cashCount", "expenses", "upiMachineTotal", "cardMachineTotal", "sodexoTotal"]
         }

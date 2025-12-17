@@ -653,8 +653,8 @@ const App: React.FC = () => {
                             
                             const sodexoDiff = phys.sodexoTotal - r.system.sodexo;
 
-                            // Use extracted total or sum of components
-                            const physicalTotalSales = phys.totalSales || (physicalNetCash + phys.upiMachineTotal + phys.cardMachineTotal + phys.sodexoTotal);
+                            // Always calculate total from components to ensure accuracy based on user request
+                            const physicalTotalSales = physicalNetCash + phys.upiMachineTotal + phys.cardMachineTotal + phys.sodexoTotal;
                             const totalDiff = physicalTotalSales - r.system.totalSales;
 
                             return (

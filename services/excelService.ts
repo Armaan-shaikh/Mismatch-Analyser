@@ -96,7 +96,7 @@ export const generateReconciliationExcel = (records: ReconciliationRecord[]): vo
     const sodexoDiff = phys.sodexoTotal - sys.sodexo;
     
     // Use extracted total sales if available, otherwise sum the components
-    const physicalTotalSales = phys.totalSales || (physicalNetCash + phys.upiMachineTotal + phys.cardMachineTotal + phys.sodexoTotal);
+    const physicalTotalSales = physicalNetCash + phys.upiMachineTotal + phys.cardMachineTotal + phys.sodexoTotal;
     const totalDiff = physicalTotalSales - sys.totalSales;
 
     return {
