@@ -273,9 +273,9 @@ const App: React.FC = () => {
                 onClick={() => setStep(AppStep.HOME)}
               >
                 <div className="w-8 h-8 bg-gradient-to-br from-brand-500 to-brand-700 rounded-lg flex items-center justify-center text-white font-bold shadow-sm">
-                  R
+                  M
                 </div>
-                <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight hidden sm:inline">ReconcileAI</span>
+                <span className="text-xl font-bold text-gray-900 dark:text-white tracking-tight hidden sm:inline">Mismatch Checker</span>
               </div>
             </div>
             

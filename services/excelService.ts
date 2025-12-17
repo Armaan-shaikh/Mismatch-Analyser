@@ -84,59 +84,99 @@ export const parseSystemExcel = async (file: File): Promise<SystemData[]> => {
 };
 
 export const generateReconciliationExcel = (records: ReconciliationRecord[]): void => {
-  const exportData = records.map(record => {
-    const sys = record.system;
-    const phys = record.physical || { cashCount: 0, expenses: 0, upiMachineTotal: 0, cardMachineTotal: 0, sodexoTotal: 0, totalSales: 0 };
-    
-    // Calculate Variances
-    const physicalNetCash = phys.cashCount + phys.expenses;
-    const cashDiff = physicalNetCash - sys.cash;
-    const upiDiff = phys.upiMachineTotal - sys.upi;
-    const cardDiff = phys.cardMachineTotal - sys.card;
-    const sodexoDiff = phys.sodexoTotal - sys.sodexo;
-    
-    // Use extracted total sales if available, otherwise sum the components
-    const physicalTotalSales = physicalNetCash + phys.upiMachineTotal + phys.cardMachineTotal + phys.sodexoTotal;
-    const totalDiff = physicalTotalSales - sys.totalSales;
-
-    return {
-      "Date": sys.date,
-      "Store Name": sys.storeName,
-      
-      // CASH GROUP
-      "Physical Cash (Count+Exp)": physicalNetCash,
-      "System Cash": sys.cash,
-      "Cash Difference": cashDiff,
-      
-      // UPI GROUP
-      "Physical UPI": phys.upiMachineTotal,
-      "System UPI": sys.upi,
-      "UPI Difference": upiDiff,
-      
-      // CARD GROUP
-      "Physical Card": phys.cardMachineTotal,
-      "System Card": sys.card,
-      "Card Difference": cardDiff,
-
-      // SODEXO GROUP
-      "Physical Sodexo": phys.sodexoTotal,
-      "System Sodexo": sys.sodexo,
-      "Sodexo Difference": sodexoDiff,
-
-      // TOTAL SALES GROUP
-      "Physical Total Sales": physicalTotalSales,
-      "System Total Sales": sys.totalSales,
-      "Total Difference": totalDiff,
-      
-      // Extra Info
-      "System Bank Transfer": sys.bankTransfer,
-    };
+  const wb = XLSX.utils.book_new();
+  const ws: any = {};
+  
+  // Define Headers
+  const headers = ["Store Name", "Date", "Sales", "Cash", "UPI", "Card", "Sodexo", "Bank Tran", "Total"];
+  
+  // Write Headers to Row 0
+  headers.forEach((h, i) => {
+    const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
+    ws[cellRef] = { v: h, t: 's' };
   });
 
-  const worksheet = XLSX.utils.json_to_sheet(exportData);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, "Reconciliation Report");
-  
-  // Generate filename
-  XLSX.writeFile(workbook, `Reconciliation_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+  let currentRow = 1; // Start at row 2 (index 1)
+  const merges: any[] = [];
+
+  records.forEach(record => {
+    const sys = record.system;
+    const phys = record.physical || { cashCount: 0, expenses: 0, upiMachineTotal: 0, cardMachineTotal: 0, sodexoTotal: 0, totalSales: 0 };
+    const phyNetCash = phys.cashCount + phys.expenses;
+
+    const rPhy = currentRow;
+    const rDiff = currentRow + 1;
+    const rSys = currentRow + 2;
+
+    // Excel Row Numbers (1-based, strictly for use in Formulas)
+    const rowPhyNum = rPhy + 1;
+    const rowDiffNum = rDiff + 1;
+    const rowSysNum = rSys + 1;
+
+    // --- Column A (0): Store Name ---
+    const storeCell = XLSX.utils.encode_cell({ r: rPhy, c: 0 });
+    ws[storeCell] = { v: sys.storeName, t: 's' };
+    merges.push({ s: { r: rPhy, c: 0 }, e: { r: rSys, c: 0 } });
+
+    // --- Column B (1): Date ---
+    const dateCell = XLSX.utils.encode_cell({ r: rPhy, c: 1 });
+    ws[dateCell] = { v: sys.date, t: 's' };
+    merges.push({ s: { r: rPhy, c: 1 }, e: { r: rSys, c: 1 } });
+
+    // --- Column C (2): Labels ---
+    ws[XLSX.utils.encode_cell({ r: rPhy, c: 2 })] = { v: "Physical", t: 's' };
+    ws[XLSX.utils.encode_cell({ r: rDiff, c: 2 })] = { v: "Difference", t: 's' };
+    ws[XLSX.utils.encode_cell({ r: rSys, c: 2 })] = { v: "System", t: 's' };
+
+    // --- Columns D-H (3-7): Data & Diff Formulas ---
+    const columns = [
+      { key: 'cash', phyVal: phyNetCash, sysVal: sys.cash, colIdx: 3, char: 'D' },
+      { key: 'upi', phyVal: phys.upiMachineTotal, sysVal: sys.upi, colIdx: 4, char: 'E' },
+      { key: 'card', phyVal: phys.cardMachineTotal, sysVal: sys.card, colIdx: 5, char: 'F' },
+      { key: 'sodexo', phyVal: phys.sodexoTotal, sysVal: sys.sodexo, colIdx: 6, char: 'G' },
+      { key: 'bank', phyVal: 0, sysVal: sys.bankTransfer, colIdx: 7, char: 'H' },
+    ];
+
+    columns.forEach(col => {
+      // Physical Value
+      ws[XLSX.utils.encode_cell({ r: rPhy, c: col.colIdx })] = { v: col.phyVal, t: 'n' };
+      // System Value
+      ws[XLSX.utils.encode_cell({ r: rSys, c: col.colIdx })] = { v: col.sysVal, t: 'n' };
+      
+      // Difference Formula: Physical (Top) - System (Bottom)
+      ws[XLSX.utils.encode_cell({ r: rDiff, c: col.colIdx })] = { f: `${col.char}${rowPhyNum}-${col.char}${rowSysNum}`, t: 'n' };
+    });
+
+    // --- Column I (8): Total Formulas ---
+    // Physical Total: SUM(D:H)
+    ws[XLSX.utils.encode_cell({ r: rPhy, c: 8 })] = { f: `SUM(D${rowPhyNum}:H${rowPhyNum})`, t: 'n' };
+    
+    // System Total: SUM(D:H)
+    ws[XLSX.utils.encode_cell({ r: rSys, c: 8 })] = { f: `SUM(D${rowSysNum}:H${rowSysNum})`, t: 'n' };
+    
+    // Difference Total: I_phy - I_sys
+    ws[XLSX.utils.encode_cell({ r: rDiff, c: 8 })] = { f: `I${rowPhyNum}-I${rowSysNum}`, t: 'n' };
+
+    // Move down 4 rows (3 data + 1 gap)
+    currentRow += 4;
+  });
+
+  // Set Sheet Range
+  const range = { s: { c: 0, r: 0 }, e: { c: 8, r: currentRow - 1 } };
+  ws['!ref'] = XLSX.utils.encode_range(range);
+  ws['!merges'] = merges;
+  ws['!cols'] = [
+    { wch: 20 }, // Store Name
+    { wch: 12 }, // Date
+    { wch: 12 }, // Label
+    { wch: 10 }, // Cash
+    { wch: 10 }, // UPI
+    { wch: 10 }, // Card
+    { wch: 10 }, // Sodexo
+    { wch: 10 }, // Bank
+    { wch: 12 }, // Total
+  ];
+
+  XLSX.utils.book_append_sheet(wb, ws, "Reconciliation Report");
+  XLSX.writeFile(wb, `Reconciliation_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
 };
