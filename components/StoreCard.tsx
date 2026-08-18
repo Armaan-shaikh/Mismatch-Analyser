@@ -166,7 +166,7 @@ export const StoreCard: React.FC<Props> = ({ record, onUploadImage }) => {
                {record.status === 'error' && (
                  <div className="flex items-center gap-1.5 text-xs text-red-600 dark:text-red-400 font-medium">
                    <AlertTriangle size={12} />
-                   <span>Extraction failed. Please try again.</span>
+                   <span className="line-clamp-2" title={record.errorMessage}>{record.errorMessage || 'Extraction failed. Please try again.'}</span>
                  </div>
                )}
                {record.status === 'pending' && (

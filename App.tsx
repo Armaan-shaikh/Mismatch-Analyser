@@ -34,12 +34,6 @@ const App: React.FC = () => {
   // Processing queue state
   const [processingQueue, setProcessingQueue] = useState<string[]>([]);
 
-  useEffect(() => {
-    if (!process.env.API_KEY) {
-      setError("API Key is missing. Please set process.env.API_KEY.");
-    }
-  }, []);
-
   // Apply dark mode class
   useEffect(() => {
     if (darkMode) {
@@ -177,12 +171,13 @@ const App: React.FC = () => {
               : `Could not distinguish store/date for "${extractedData.extractedStoreName}"`;
             setError(`${msg}. Please upload manually.`);
           }
-        } catch (apiError) {
+        } catch (apiError: any) {
           console.error(apiError);
           if (manualRecordId) {
             setRecords(prev => prev.map(r => r.id === manualRecordId ? { ...r, status: 'error' } : r));
           }
-          setError(`Failed to analyze image: ${file.name}`);
+          const errMsg = apiError?.message || "Failed to analyze image";
+          setError(`${file.name}: ${errMsg}`);
         } finally {
           setProcessingQueue(prev => prev.filter(name => name !== file.name));
         }
